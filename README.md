@@ -9,21 +9,26 @@ A lightweight web app for tracking pickleball matches in real time. It supports 
 - Support singles and doubles formats
 - Official side-out scoring and simple rally-point mode
 - Adjustable point target, win-by margin, and match length
-- Undo, reset, swap-serve, and flip controls
+- New match flow with archived session history
+- Dark and light theme toggle
+- Match history panel with game and match results
+- Exportable session log and clear-history actions
+- Undo, reset, swap-serve, and face-off controls
 - Keyboard shortcuts for quick score updates
 - Fullscreen support and sound cues for point events
+- Responsive layout for compact/mobile viewing
 
 ## Files
 
-- `pickleball-scoreboard.html` — main app layout and UI
-- `styles.css` — scoreboard styling and responsive layout
-- `script.js` — scoring logic, match rules, and UI behavior
-- `.gitignore` — project ignore rules
+- index.html — main app layout and UI
+- styles.css — scoreboard styling, themes, and responsive layout
+- script.js — scoring logic, match rules, history tracking, and UI behavior
+- .gitignore — project ignore rules
 
 ## Run locally
 
 Open the app in a browser:
-1. Open `pickleball-scoreboard.html` directly in a browser, or
+1. Open index.html directly in a browser, or
 2. Run a local web server:
 
 ```bash
@@ -34,13 +39,14 @@ python -m http.server 8000
 Then visit:
 
 ```text
-http://localhost:8000/pickleball-scoreboard.html
+http://localhost:8000/
 ```
 
 ## Controls
 
 - Tap a team panel to award a point
 - Use the Settings button to change rules
+- Use the History button to review the current session log
 - Use Undo to reverse the previous score event
 - Use Reset game to clear the current game score
 - Use Swap serve to rotate the serving team
@@ -55,4 +61,4 @@ http://localhost:8000/pickleball-scoreboard.html
 
 ## Notes
 
-This project is designed for on-court or table-side match tracking and is meant to be easy to use during live play.
+This project is designed for on-court or table-side match tracking and is meant to be easy to use during live play. The current session log is stored in browser memory for the active session and can be exported as plain text when needed.

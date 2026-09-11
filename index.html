@@ -19,6 +19,13 @@
     </div>
     <div class="match-info" id="matchInfo">Best of 3 · to 11, win by 2</div>
     <div class="topbar-actions">
+      <button class="icon-btn" id="themeToggleBtn" title="Switch to light mode" aria-label="Switch to light mode" aria-pressed="false">
+        <svg class="theme-icon moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 0 1 11.2 3a9 9 0 1 0 9.8 9.8Z"/></svg>
+        <svg class="theme-icon sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <button class="icon-btn" id="historyBtn" title="Match history" aria-label="Open match history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H20v12.5A2.5 2.5 0 0 1 17.5 19H6.5A2.5 2.5 0 0 1 4 16.5v-10Z"/><path d="M8 8h8M8 12h6M8 16h5"/></svg>
+      </button>
       <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -148,6 +155,23 @@
   </div>
 </div>
 
+<!-- HISTORY MODAL -->
+<div class="modal-overlay" id="historyOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Match history</h2>
+      <button class="modal-close" id="closeHistory" aria-label="Close match history">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="history-actions">
+      <button class="ghost-btn" id="exportHistoryBtn">Export</button>
+      <button class="danger-btn small" id="clearHistoryBtn">Clear</button>
+    </div>
+    <div class="modal-body history-body" id="historyList"></div>
+  </div>
+</div>
+
 <!-- GAME / MATCH WIN OVERLAY -->
 <div class="win-overlay" id="winOverlay">
   <div class="eyebrow" id="winEyebrow">Game 1</div>
@@ -177,25 +201,180 @@
     soundOn: true,
     flipped: false,
     matchOver: false,
-    matchWinner: null
+    matchWinner: null,
+    theme: "dark"
   };
 
+  const sessionLog = { archived: [], current: null };
   let history = [];
   const MAX_HISTORY = 60;
+
+  function formatTimestamp(date){
+    return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date instanceof Date ? date : new Date(date));
+  }
+
+  function formatDuration(ms){
+    if(!Number.isFinite(ms) || ms < 0) return "0:00";
+    const totalSeconds = Math.max(0, Math.round(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return minutes + ":" + String(seconds).padStart(2, "0");
+  }
+
+  function createMatchRecord(){
+    return {
+      id: `match-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      startedAt: new Date().toISOString(),
+      teamNames: { A: state.names.A, B: state.names.B },
+      games: [],
+      summary: null,
+      winner: null,
+      gamesScore: null,
+      endedAt: null,
+      durationMs: null
+    };
+  }
+
+  function ensureCurrentMatch(){
+    if(!sessionLog.current){
+      sessionLog.current = createMatchRecord();
+    }
+    return sessionLog.current;
+  }
+
+  function archiveCurrentMatch(){
+    if(!sessionLog.current) return;
+    const current = sessionLog.current;
+    if(current.games.length || current.summary){
+      sessionLog.archived.unshift({
+        ...current,
+        teamNames: { ...current.teamNames },
+        games: current.games.map((game) => ({ ...game })),
+        summary: current.summary ? { ...current.summary } : null
+      });
+    }
+    sessionLog.current = null;
+  }
+
+  function visibleMatches(){
+    const matches = [...sessionLog.archived];
+    if(sessionLog.current){
+      matches.unshift(sessionLog.current);
+    }
+    return matches.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+  }
+
+  function renderHistory(){
+    const list = $("historyList");
+    const matches = visibleMatches();
+
+    if(!matches.length){
+      list.innerHTML = '<div class="history-empty">No completed games recorded yet.</div>';
+      return;
+    }
+
+    list.innerHTML = matches.map((match, matchIndex) => {
+      const teamAName = match.teamNames?.A || "Team A";
+      const teamBName = match.teamNames?.B || "Team B";
+      const matchLabel = match.summary ? "Match result" : "Current match";
+      const matchTime = match.summary ? (match.summary.duration ? match.summary.duration : formatTimestamp(match.endedAt || match.startedAt)) : formatTimestamp(match.startedAt);
+      const scoreChip = match.summary ? match.summary.gamesScore : "In progress";
+      const summaryText = match.summary
+        ? `Winner: ${match.summary.winnerName} · Final games: ${match.summary.gamesScore} · Duration: ${match.summary.duration}`
+        : `Teams: ${teamAName} vs ${teamBName}`;
+      const games = match.games.length
+        ? match.games.slice().reverse().map((game, idx) => {
+            const gameNumber = match.games.length - idx;
+            return `
+              <div class="history-game">
+                <span>G${gameNumber}</span>
+                <strong>${game.winnerName}</strong>
+                <span>${game.scoreText}</span>
+                <time>${game.timestamp}</time>
+              </div>
+            `;
+          }).join("")
+        : '<div class="history-empty">No completed games yet.</div>';
+
+      return `
+        <div class="history-match">
+          <div class="history-match-header">
+            <div class="history-match-label">
+              <strong>${matchLabel}</strong>
+              <span>${matchTime}</span>
+            </div>
+            <span class="history-score-pill">${scoreChip}</span>
+          </div>
+          <div class="history-team-line">${teamAName} vs ${teamBName}</div>
+          <div class="history-summary">${summaryText}</div>
+          <div class="history-game-list">${games}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function exportHistory(){
+    const matches = visibleMatches();
+    const lines = [];
+
+    matches.forEach((match, matchIndex) => {
+      const matchNumber = matches.length - matchIndex;
+      const teamAName = match.teamNames?.A || "Team A";
+      const teamBName = match.teamNames?.B || "Team B";
+      lines.push(`Match ${matchNumber}: ${teamAName} vs ${teamBName}`);
+      if(match.summary){
+        lines.push(`Winner: ${match.summary.winnerName} | Final games: ${match.summary.gamesScore} | Duration: ${match.summary.duration}`);
+      }
+      if(!match.games.length){
+        lines.push("Games: none logged yet");
+        return;
+      }
+      match.games.forEach((game, idx) => {
+        lines.push(`Game ${idx + 1}: ${game.winnerName} won ${game.scoreText} at ${game.timestamp}`);
+      });
+      lines.push("");
+    });
+
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "pickleball-session-log.txt";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function setTheme(theme){
+    state.theme = theme;
+    document.body.dataset.theme = theme;
+    const isLight = theme === "light";
+    const btn = $("themeToggleBtn");
+    btn.setAttribute("aria-pressed", String(isLight));
+    btn.setAttribute("aria-label", isLight ? "Switch to dark mode" : "Switch to light mode");
+    btn.title = isLight ? "Switch to dark mode" : "Switch to light mode";
+  }
 
   function snapshot(){
     return JSON.parse(JSON.stringify({
       names: state.names, scores: state.scores, gamesWon: state.gamesWon,
       servingTeam: state.servingTeam, serverNumber: state.serverNumber,
       firstServerOfGame: state.firstServerOfGame, matchOver: state.matchOver,
-      matchWinner: state.matchWinner
+      matchWinner: state.matchWinner, theme: state.theme,
+      sessionLog: {
+        archived: sessionLog.archived,
+        current: sessionLog.current
+      }
     }));
   }
+
   function pushHistory(){
     history.push(snapshot());
     if(history.length > MAX_HISTORY) history.shift();
     $("undoBtn").disabled = false;
   }
+
   function undo(){
     if(!history.length) return;
     const prev = history.pop();
@@ -207,6 +386,11 @@
     state.firstServerOfGame = prev.firstServerOfGame;
     state.matchOver = prev.matchOver;
     state.matchWinner = prev.matchWinner;
+    if(prev.theme){ setTheme(prev.theme); }
+    if(prev.sessionLog){
+      sessionLog.archived = prev.sessionLog.archived || [];
+      sessionLog.current = prev.sessionLog.current || null;
+    }
     $("undoBtn").disabled = history.length === 0;
     closeWinOverlay();
     render();
@@ -233,6 +417,35 @@
 
   // ---------- SCORING LOGIC ----------
   function other(team){ return team === "A" ? "B" : "A"; }
+
+  function recordCompletedGame(winner, a, b){
+    const match = ensureCurrentMatch();
+    const scoreText = winner === "A" ? `${a}-${b}` : `${b}-${a}`;
+    match.games.push({
+      winner,
+      winnerName: state.names[winner],
+      scoreText,
+      timestamp: formatTimestamp(new Date()),
+      gameNumber: match.games.length + 1
+    });
+    renderHistory();
+  }
+
+  function finalizeCurrentMatch(winner){
+    const match = ensureCurrentMatch();
+    match.winner = winner;
+    match.gamesScore = winner === "A" ? `${state.gamesWon.A}-${state.gamesWon.B}` : `${state.gamesWon.B}-${state.gamesWon.A}`;
+    match.endedAt = new Date().toISOString();
+    match.durationMs = Date.now() - new Date(match.startedAt).getTime();
+    match.summary = {
+      winner,
+      winnerName: state.names[winner],
+      gamesScore: match.gamesScore,
+      duration: formatDuration(match.durationMs),
+      timestamp: formatTimestamp(new Date())
+    };
+    renderHistory();
+  }
 
   function pointWonBy(team){
     if(state.matchOver) return;
@@ -286,11 +499,13 @@
       const majority = Math.ceil(state.bestOf / 2);
       const isMatchOver = state.gamesWon[leader] >= majority;
 
+      recordCompletedGame(leader, a, b);
       showWinOverlay(leader, a, b, isMatchOver);
 
       if(isMatchOver){
         state.matchOver = true;
         state.matchWinner = leader;
+        finalizeCurrentMatch(leader);
       } else {
         state.scores.A = 0; state.scores.B = 0;
         state.servingTeam = leader;
@@ -350,6 +565,7 @@
 
     $("court").classList.toggle("locked", state.matchOver);
     $("undoBtn").disabled = history.length === 0;
+    renderHistory();
   }
 
   // ---------- TOAST ----------
@@ -385,14 +601,22 @@
 
   // ---------- ACTIONS ----------
   function newMatch(confirmFirst){
-    if(confirmFirst && !confirm("Start a new match? This resets scores and games won.")) return;
-    history = [];
+    if(confirmFirst && !confirm("Start a new match? The current match will be archived to history.")) return;
+    archiveCurrentMatch();
+    sessionLog.current = createMatchRecord();
     state.scores.A = 0; state.scores.B = 0;
     state.gamesWon.A = 0; state.gamesWon.B = 0;
     state.servingTeam = "A"; state.serverNumber = 1; state.firstServerOfGame = true;
     state.matchOver = false; state.matchWinner = null;
     closeWinOverlay();
     render();
+  }
+
+  function clearHistory(){
+    if(!confirm("Clear the full session log? This cannot be undone.")) return;
+    sessionLog.archived = [];
+    sessionLog.current = createMatchRecord();
+    renderHistory();
   }
 
   function resetGame(){
@@ -428,8 +652,8 @@
   $("minusA").addEventListener("click", (e) => { e.stopPropagation(); manualAdjust("A", -1); });
   $("minusB").addEventListener("click", (e) => { e.stopPropagation(); manualAdjust("B", -1); });
 
-  $("nameA").addEventListener("input", (e) => { state.names.A = e.target.value || "Team A"; });
-  $("nameB").addEventListener("input", (e) => { state.names.B = e.target.value || "Team B"; });
+  $("nameA").addEventListener("input", (e) => { state.names.A = e.target.value || "Team A"; if(sessionLog.current){ sessionLog.current.teamNames.A = state.names.A; } });
+  $("nameB").addEventListener("input", (e) => { state.names.B = e.target.value || "Team B"; if(sessionLog.current){ sessionLog.current.teamNames.B = state.names.B; } });
   $("nameA").addEventListener("click", (e) => e.stopPropagation());
   $("nameB").addEventListener("click", (e) => e.stopPropagation());
 
@@ -438,6 +662,12 @@
   $("resetGameBtn").addEventListener("click", resetGame);
   $("flipBtn").addEventListener("click", toggleFlip);
   $("fullscreenBtn").addEventListener("click", toggleFullscreen);
+  $("themeToggleBtn").addEventListener("click", () => setTheme(state.theme === "dark" ? "light" : "dark"));
+  $("historyBtn").addEventListener("click", () => $("historyOverlay").classList.add("open"));
+  $("closeHistory").addEventListener("click", () => $("historyOverlay").classList.remove("open"));
+  $("historyOverlay").addEventListener("click", (e) => { if(e.target.id === "historyOverlay") $("historyOverlay").classList.remove("open"); });
+  $("clearHistoryBtn").addEventListener("click", clearHistory);
+  $("exportHistoryBtn").addEventListener("click", exportHistory);
 
   $("settingsBtn").addEventListener("click", () => $("settingsOverlay").classList.add("open"));
   $("closeSettings").addEventListener("click", () => $("settingsOverlay").classList.remove("open"));
@@ -474,6 +704,8 @@
     else if(e.key.toLowerCase() === "f"){ toggleFullscreen(); }
   });
 
+  sessionLog.current = createMatchRecord();
+  setTheme(state.theme);
   render();
 })();
 </script>
