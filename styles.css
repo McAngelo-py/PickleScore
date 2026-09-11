@@ -54,6 +54,33 @@
     height:100vh;
     height:100dvh;
   }
+
+  .loader-screen{
+    position:fixed;
+    inset:0;
+    z-index:200;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--bg);
+    transition:opacity 0.35s ease, visibility 0.35s ease;
+  }
+  .loader-screen.hidden{
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+  }
+  .loader-logo{
+    width:min(32vw, 140px);
+    height:min(32vw, 140px);
+    object-fit:contain;
+    animation:pulse 1.2s ease-in-out infinite;
+    filter:drop-shadow(0 12px 20px rgba(0,0,0,0.18));
+  }
+  @keyframes pulse{
+    0%, 100% { transform:scale(0.96); opacity:0.72; }
+    50% { transform:scale(1); opacity:1; }
+  }
   button{font-family:inherit; cursor:pointer;}
   input{font-family:inherit;}
 

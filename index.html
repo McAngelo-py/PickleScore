@@ -4,12 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Pickleball Scoreboard</title>
+<link rel="icon" type="image/png" href="Images/pngtree-pickleball-vector-illustration-isolated-on-white-background-outdoor-illustration-play-image_26705744.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+<div class="loader-screen" id="loaderScreen" aria-live="polite" aria-label="Loading scoreboard">
+  <img src="Images/pngtree-pickleball-vector-illustration-isolated-on-white-background-outdoor-illustration-play-image_26705744.png" alt="Pickleball icon" class="loader-logo">
+</div>
 
 <div class="app">
   <header class="topbar">
@@ -702,6 +707,13 @@
     else if(e.key === "ArrowRight"){ pointWonBy("B"); }
     else if(e.key.toLowerCase() === "z"){ undo(); }
     else if(e.key.toLowerCase() === "f"){ toggleFullscreen(); }
+  });
+
+  window.addEventListener("load", () => {
+    const loader = $("loaderScreen");
+    window.setTimeout(() => {
+      loader.classList.add("hidden");
+    }, 500);
   });
 
   sessionLog.current = createMatchRecord();
